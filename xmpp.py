@@ -1,13 +1,64 @@
 from rpc_agent import agent as _agent
+import logging as _log
 
 # test_xmpp_agent1
 # test_xmpp_agent2
-class xmpp_agent(_agent):
-	def __init__(self,jid,password):
+class agent(_agent):
+	def __start(self,event):
+		self.__xmpp_client.send_presence()
+		self.__xmpp_client.get_roster()
+		with self.__tmp_cv:
+			self.__tmp_status = 1
+			self.__logger.info('session started')
+			self.__tmp_cv.notify_all()
+	def __failed_auth(self,event):
+		with self.__tmp_cv:
+			self.__tmp_status = -1
+			logging.info('authentication failure')
+			self.__tmp_cv.notify_all()
+	def __message(self,msg):
+		self.__logger.info('received message')
+		if not msg['type'] in ('normal','chat'):
+			# Do nothing if the message is not a normal or chat one.
+			self.__logger.info('message of type "' + msg['type'] + '" will not be handled')
+			return
+		self.__logger.info('message of type "' + msg['type'] + '" will be handled')
+		# First try to see if the message is a response.
+		try:
+			jdict = self.parse_response(msg['body'])
+			is_response = True
+		except:
+			is_response = False
+		if is_response:
+			self.__logger.info('message parsed as response')
+			with self.__cv:
+				if jdict['id'] in self.__pending_requests:
+					self.__logger.info('matching pending request found')
+					self.__received_responses[jdict['id']] = jdict
+					del self.__pending_requests[jdict['id']]
+					self.__cv.notify_all()
+				else:
+					self.__logger.info('no matching pending request found, ignoring message')
+			return
+		self.__logger.info('attempting to execute request')
+		# Interpret as a request, execute and reply the answer, if the request was not a notification.
+		ret = self.execute_request(msg['body'])
+		if not ret is None:
+			msg.reply(ret).send()
+	def __init__(self,jid,password,timeout = 0):
 		from sleekxmpp import ClientXMPP
 		from threading import Condition, Lock
 		import ssl
-		super(xmpp_agent,self).__init__()
+		super(agent,self).__init__()
+		try:
+			self.__timeout = float(timeout)
+		except:
+			raise TypeError('cannot convert timeout value to float')
+		if self.__timeout < 0.:
+			raise ValueError('timeout value must be non-negative')
+		# Logger object.
+		self.__logger = _log.getLogger('jezebel.xmpp.agent')
+		self.__logger.info('creating an agent')
 		# Create the XMPP client as a class member.
 		self.__xmpp_client = ClientXMPP(jid,password)
 		# Dictionary of sent requests and received responses.
@@ -37,56 +88,8 @@ class xmpp_agent(_agent):
 		else:
 			raise RuntimeError('connection failed')
 		self.client = self.__xmpp_client
-	def disconnect(self):
+	def xmpp_disconnect(self):
 		self.__xmpp_client.disconnect()
-	def __start(self,event):
-		import logging
-		self.__xmpp_client.send_presence()
-		self.__xmpp_client.get_roster()
-		with self.__tmp_cv:
-			self.__tmp_status = 1
-			logging.info('session started')
-			self.__tmp_cv.notify_all()
-	def __failed_auth(self,event):
-		import logging
-		with self.__tmp_cv:
-			self.__tmp_status = -1
-			logging.warn('failed auth')
-			self.__tmp_cv.notify_all()
-	def __message(self,msg):
-		import logging
-		print("received message")
-		if not msg['type'] in ('normal','chat'):
-			# Do nothing if the message is not a normal or chat one.
-			return
-		print("chat message")
-		# First try to see if the message is a response.
-		try:
-			jdict = self.parse_response(msg['body'])
-			is_response = True
-		except:
-			is_response = False
-		if is_response:
-			print('response parsed: ' + msg['body'])
-			logging.info('received response "' + msg['body'] +'"')
-			print('logged')
-			with self.__cv:
-				print('1')
-				if jdict['id'] in self.__pending_requests:
-					print('2')
-					self.__received_responses[jdict['id']] = jdict
-					print('3')
-					del self.__pending_requests[jdict['id']]
-					print('4')
-					self.__cv.notify_all()
-					print('5')
-			print('finishing up')
-			return
-		print("executing request")
-		# Interpret as a request, execute and reply the answer, if the request was not a notification.
-		ret = self.execute_request(msg['body'])
-		if not ret is None:
-			msg.reply(ret).send()
 	def xmpp_rpc_request(self,target,req):
 		from urllib.parse import urlparse
 		import json
@@ -100,7 +103,7 @@ class xmpp_agent(_agent):
 		try:
 			# NOTE: try-catch because if something fails here we need to remove
 			# the request from the pending requests list.
-			print('sending message to ' + jid)
+			self.__logger.info('sending request to ' + jid)
 			self.__xmpp_client.send_message(mto=jid,mbody=req_s)
 		except:
 			with self.__lock:
@@ -112,7 +115,7 @@ class xmpp_agent(_agent):
 		def worker():
 			with self.__cv:
 				while not req['id'] in self.__received_responses:
-					print('now waiting')
+					self.__logger.info('waiting for response')
 					self.__cv.wait()
 				jdict = self.__received_responses.pop(req['id'])
 			if 'error' in jdict:

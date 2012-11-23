@@ -204,11 +204,6 @@ class agent(object):
 			except AttributeError:
 				raise TypeError('no handler for scheme "' + url[0] + '" found')
 			return m(target,req)
-	def hello_wrong(self):
-		pass
 	@enable_rpc
-	def hello_empty(self):
-		pass
-	@enable_rpc
-	def hello_world(self):
-		return 'hello world'
+	def features(self):
+		return list(filter(lambda _: hasattr(getattr(self,_),'_enable_rpc_'),dir(self)))
