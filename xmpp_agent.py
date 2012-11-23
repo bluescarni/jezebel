@@ -124,12 +124,12 @@ class xmpp_agent(_agent):
 		executor.shutdown(wait = False)
 		return retval
 	@property
-	def pending(self):
+	def xmpp_pending(self):
 		from copy import deepcopy
 		with self.__lock:
 			return deepcopy(self.__pending_requests)
 	@property
-	def received(self):
+	def xmpp_received(self):
 		from copy import deepcopy
 		with self.__lock:
 			return deepcopy(self.__received_responses)
