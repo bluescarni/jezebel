@@ -7,116 +7,12 @@
 
 """
 
-# TODO: figure a way to document the code property in base exception.
-
-class RPCError(Exception):
-	"""Base exception class.
-	
-	All RPC-related errors derive from this class.
-	
-	"""
-	def __init__(self,code,msg=''):
-		"""Constructor.
-		
-		:param code: an error code
-		:type code: integer
-		:param msg: an error message
-		:type msg: string
-		
-		:raises: :exc:`TypeError` if the types of *code* and/or *msg* are invalid
-		
-		"""
-		if not isinstance(code,int) or not isinstance(msg,str):
-			raise TypeError('invalid argument types')
-		self._code = code
-		self._msg = msg
-	"""String representation.
-	
-	:rtype: the stored message string
-	
-	"""
-	def __str__(self):
-		return self._msg
-	@property
-	def code(self):
-		return self._code
-
-class RPCParseError(RPCError):
-	"""RPC parse error.
-	
-	Will be raised when a JSON-RPC request cannot be parsed.
-	
-	"""
-	def __init__(self):
-		"""Constructor.
-		
-		Will set the internal error code to -32700 as per JSON-RPC 2.0 specification.
-		
-		"""
-		super(RPCParseError,self).__init__(-32700,'error parsing the request')
-
-class RPCInvalidRequestError(RPCError):
-	"""RPC parse error.
-	
-	Will be raised when a JSON-RPC request is malformed.
-	
-	"""
-	def __init__(self,msg=''):
-		"""Constructor.
-		
-		Will set the internal error code to -32600 as per JSON-RPC 2.0 specification.
-		
-		:param msg: optional additional error info
-		:type msg: string
-		
-		"""
-		code = -32600
-		if isinstance(msg,str) and msg != '':
-			super(RPCInvalidRequestError,self).__init__(code,'invalid request: ' + msg)
-		else:
-			super(RPCInvalidRequestError,self).__init__(code,'invalid request')
-
-class RPCMethodError(RPCError):
-	"""RPC method error.
-	
-	Will be raised when a method cannot be found.
-	
-	"""
-	def __init__(self):
-		"""Constructor.
-		
-		Will set the internal error code to -32601 as per JSON-RPC 2.0 specification.
-		
-		"""
-		super(RPCMethodError,self).__init__(-32601,'method not found')
-
-class RPCParamsError(RPCError):
-	"""RPC parameters error.
-	
-	Will be raised when the parameters of an RPC are invalid.
-	
-	"""
-	def __init__(self):
-		"""Constructor.
-		
-		Will set the internal error code to -32602 as per JSON-RPC 2.0 specification.
-		
-		"""
-		super(RPCParamsError,self).__init__(-32602,'invalid method parameter(s)')
-
-class RPCInternalError(RPCError):
-	"""RPC internal error.
-	
-	Will be raised in case of an internal JSON-RPC error.
-	
-	"""
-	def __init__(self):
-		"""Constructor.
-		
-		Will set the internal error code to -32603 as per JSON-RPC 2.0 specification.
-		
-		"""
-		super(RPCInternalError,self).__init__(-32603,'internal error')
+class error_codes(object):
+	PARSE_ERROR		= -32700
+	INVALID_REQUEST		= -32600
+	METHOD_NOT_FOUND	= -32601
+	INVALID_PARAMS		= -32602
+	INTERNAL_ERROR		= -32603
 
 def enable_rpc(method):
 	"""Decorator to enable remote calling on methods.
@@ -129,19 +25,17 @@ class agent(object):
 	def __init__(self):
 		super(agent,self).__init__()
 	@staticmethod
-	def _translate_rpc_error(jdict):
-		# Translate JSON-RPC errors into Python exceptions.
-		error_id = jdict['error']['code']
-		if error_id == -32700:
-			raise RPCParseError
-		elif error_id == -32600:
-			raise RPCInvalidRequestError(jdict['error']['message'])
-		elif error_id == -32601:
-			raise RPCMethodError
-		elif error_id == -32602:
-			raise RPCParamsError
+	def translate_rpc_error(code,message):
+		if not isinstance(code,int) or not isinstance(message,str):
+			raise TypeError('invalid types: code must be an integer and message a string')
+		if code in (error_codes.PARSE_ERROR,error_codes.INVALID_REQUEST):
+			raise ValueError(message)
+		elif code == error_codes.METHOD_NOT_FOUND:
+			raise AttributeError(message)
+		elif code == error_codes.INVALID_PARAMS:
+			raise TypeError(message)
 		else:
-			raise RPCInternalError
+			raise RuntimeError(message)
 	@staticmethod
 	def create_request(method_name,*args,**kwargs):
 		"""Create RPC request from signature.
@@ -163,7 +57,7 @@ class agent(object):
 	def parse_request(s):
 		"""Parse RPC request.
 		
-		The request will be parsed into a Python dictionary using the JSON deserialized.
+		The request will be parsed into a Python dictionary using the JSON deserializer.
 		The method will check that the request conforms to the JSON-RPC 2.0 specification.
 		
 		"""
@@ -174,17 +68,17 @@ class agent(object):
 		try:
 			jdict = json.loads(s)
 		except:
-			return -32700, 'parse error', {}
+			return error_codes.PARSE_ERROR, 'parse error', {}
 		# No id means it's a notification.
 		if 'id' in jdict:
 			if not jdict['id'] is None and not isinstance(jdict['id'],(str,int,float)):
-				return -32600, 'invalid request: invalid id member type', jdict
+				return error_codes.INVALID_REQUEST, 'invalid request: invalid id member type', jdict
 		if not 'jsonrpc' in jdict or not isinstance(jdict['jsonrpc'],str) or jdict['jsonrpc'] != '2.0':
-			return -32600, 'invalid request: missing or invalid jsonrpc member', jdict
+			return error_codes.INVALID_REQUEST, 'invalid request: missing or invalid jsonrpc member', jdict
 		if not 'method' in jdict or not isinstance(jdict['method'],str):
-			return -32600, 'invalid request: missing or invalid method member', jdict
+			return error_codes.INVALID_REQUEST, 'invalid request: missing or invalid method member', jdict
 		if 'params' in jdict and not isinstance(jdict['params'],(list,dict)):
-			return -32600, 'invalid request: invalid params member', jdict
+			return error_codes.INVALID_REQUEST, 'invalid request: invalid params member', jdict
 		return None, '', jdict
 	@staticmethod
 	def parse_response(s):
@@ -199,8 +93,6 @@ class agent(object):
 		if int('result' in jdict) + int('error' in jdict) != 1:
 			raise ValueError('either a result or an error (but not both) must be present in the response')
 		if 'error' in jdict:
-			if not jdict['id'] is None:
-				raise ValueError('in case of errors the id of the response must be null')
 			if not isinstance(jdict['error'],dict):
 				raise ValueError('the error value must be an object')
 			if not 'code' in jdict['error'] or not isinstance(jdict['error']['code'],int):
@@ -213,7 +105,7 @@ class agent(object):
 		import json
 		assert(isinstance(code,int))
 		assert(isinstance(message,str))
-		assert(isinstance(dict,orig_req))
+		assert(isinstance(orig_req,dict))
 		retval = {'jsonrpc':'2.0'}
 		# NOTE: here we have to test the type of the id field as we might end up calling this method
 		# with an invalid id type.
@@ -252,11 +144,11 @@ class agent(object):
 		try:
 			m = getattr(self,jdict['method'])
 		except AttributeError:
-			return wrapper(self.__build_jsonrpc_error(-32601,'method not found',jdict))
+			return wrapper(self.__build_jsonrpc_error(error_codes.METHOD_NOT_FOUND,'method not found',jdict))
 		# If the method is available, it must have been decorated in order for it to
 		# be remotely callable.
 		if not hasattr(m,'_enable_rpc_'):
-			return wrapper(self.__build_jsonrpc_error(-32601,'method not found',jdict))
+			return wrapper(self.__build_jsonrpc_error(error_codes.METHOD_NOT_FOUND,'method not found',jdict))
 		try:
 			# Call with the appropriate parameter unpacking (or no params at all).
 			if 'params' in jdict:
@@ -273,7 +165,7 @@ class agent(object):
 			# or serialising the result. This could be made more specific, at least in case of
 			# invalid function signature parameters when calling the method. Eventually, might use
 			# the inspect module for that.
-			return wrapper(self.__build_jsonrpc_error(-32603,'internal error: ' + repr(e),jdict))
+			return wrapper(self.__build_jsonrpc_error(error_codes.INTERNAL_ERROR,'internal error: ' + repr(e),jdict))
 	def __call__(self,target,method_name,*args,**kwargs):
 		import json
 		from concurrent.futures import ThreadPoolExecutor as tpe
@@ -287,7 +179,7 @@ class agent(object):
 			def worker():
 				ret = target.execute_request(json.dumps(req))
 				# NOTE: ret cannot be None because we constructed the request with
-				# agent.create_request(), which does not support notifications.
+				# agent.create_request(), which does not support notifications at the present time.
 				assert(not ret is None)
 				jdict = self.parse_response(ret)
 				# NOTE: since we are interacting with other Python agents, this should always be
@@ -295,7 +187,7 @@ class agent(object):
 				# the request too.
 				assert(jdict['id'] == req['id'])
 				if 'error' in jdict:
-					self._translate_rpc_error(jdict)
+					self.translate_rpc_error(jdict['error']['code'],jdict['error']['message'])
 				else:
 					return jdict['result']
 			executor = tpe(max_workers = 1)

@@ -57,7 +57,7 @@ class xmpp_agent(_agent):
 		import logging
 		print("received message")
 		if not msg['type'] in ('normal','chat'):
-			# Do nothing if the message is not a normal one.
+			# Do nothing if the message is not a normal or chat one.
 			return
 		print("chat message")
 		# First try to see if the message is a response.
@@ -93,18 +93,43 @@ class xmpp_agent(_agent):
 		from concurrent.futures import ThreadPoolExecutor as tpe
 		jid = urlparse(target)[1]
 		req_s = json.dumps(req)
+		# First the request must be registered, then sent. The other way around,
+		# we might get a reply before the request is registered.
 		with self.__lock:
 			self.__pending_requests[req['id']] = req
-		print('sending message to ' + jid)
-		self.__xmpp_client.send_message(mto=jid,mbody=req_s)
+		try:
+			# NOTE: try-catch because if something fails here we need to remove
+			# the request from the pending requests list.
+			print('sending message to ' + jid)
+			self.__xmpp_client.send_message(mto=jid,mbody=req_s)
+		except:
+			with self.__lock:
+				# Unlikely, but it could be possible the a request with the same id got satisfied in the meantime.
+				if req['id'] in self.__pending_requests:
+					del self.__pending_requests[req['id']]
+			raise
+		# Asynch worker function.
 		def worker():
 			with self.__cv:
 				while not req['id'] in self.__received_responses:
 					print('now waiting')
 					self.__cv.wait()
-				retval = self.__received_responses[req['id']]
-			return retval
+				jdict = self.__received_responses.pop(req['id'])
+			if 'error' in jdict:
+				self.translate_rpc_error(jdict['error']['code'],jdict['error']['message'])
+			else:
+				return jdict['result']
 		executor = tpe(max_workers = 1)
 		retval = executor.submit(worker)
 		executor.shutdown(wait = False)
 		return retval
+	@property
+	def pending(self):
+		from copy import deepcopy
+		with self.__lock:
+			return deepcopy(self.__pending_requests)
+	@property
+	def received(self):
+		from copy import deepcopy
+		with self.__lock:
+			return deepcopy(self.__received_responses)
