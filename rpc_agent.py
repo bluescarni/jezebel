@@ -200,7 +200,7 @@ class agent(object):
 			if url[0] == '':
 				raise ValueError('no scheme detected in URL')
 			try:
-				m = getattr(self,url[0]+'_call_request')
+				m = getattr(self,url[0]+'_rpc_request')
 			except AttributeError:
 				raise TypeError('no handler for scheme "' + url[0] + '" found')
 			return m(target,req)

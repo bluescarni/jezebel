@@ -87,7 +87,7 @@ class xmpp_agent(_agent):
 		ret = self.execute_request(msg['body'])
 		if not ret is None:
 			msg.reply(ret).send()
-	def xmpp_call_request(self,target,req):
+	def xmpp_rpc_request(self,target,req):
 		from urllib.parse import urlparse
 		import json
 		from concurrent.futures import ThreadPoolExecutor as tpe
