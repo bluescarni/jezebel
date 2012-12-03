@@ -48,7 +48,7 @@ class agent(_agent):
 		self.__logger.info('request executed, result is: ' + str(ret))
 		if not ret is None:
 			msg.reply(ret).send()
-	def __init__(self,jid,password,timeout = None):
+	def __init__(self,jid,password = None,timeout = None):
 		from sleekxmpp import ClientXMPP
 		from threading import Condition, Lock
 		import ssl
