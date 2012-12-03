@@ -14,13 +14,14 @@ class agent(_agent):
 	def __failed_auth(self,event):
 		with self.__tmp_cv:
 			self.__tmp_status = -1
-			logging.info('authentication failure')
+			self.__logger.info('authentication failure')
 			self.__tmp_cv.notify_all()
 	def __message(self,msg):
 		self.__logger.info('received message')
 		if not msg['type'] in ('normal','chat'):
 			# Do nothing if the message is not a normal or chat one.
 			self.__logger.info('message of type "' + msg['type'] + '" will not be handled')
+			self.__logger.info('message body:\n' + msg['body'])
 			return
 		self.__logger.info('message of type "' + msg['type'] + '" will be handled')
 		self.__logger.info('message body:\n' + msg['body'])
@@ -44,6 +45,7 @@ class agent(_agent):
 		self.__logger.info('attempting to execute request')
 		# Interpret as a request, execute and reply the answer, if the request was not a notification.
 		ret = self.execute_request(msg['body'])
+		self.__logger.info('request executed, result is: ' + str(ret))
 		if not ret is None:
 			msg.reply(ret).send()
 	def __init__(self,jid,password,timeout = None):
