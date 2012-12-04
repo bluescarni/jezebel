@@ -1,6 +1,6 @@
 """
-.. module:: rpc_agent
-   :synopsis: Base module for the implementation of RPC agents.
+.. module:: rpc
+   :synopsis: RPC base module.
 
 .. moduleauthor::  Francesco Biscani <bluescarni@gmail.com>
 
@@ -22,8 +22,8 @@ def enable_rpc(method):
 	return method
 
 class agent(object):
-	def __init__(self):
-		super(agent,self).__init__()
+	def __init__(self,**kwargs):
+		super().__init__(**kwargs)
 	@staticmethod
 	def translate_rpc_error(code,message):
 		if not isinstance(code,int) or not isinstance(message,str):

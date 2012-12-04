@@ -1,9 +1,55 @@
-from rpc_agent import agent as _agent
-import logging as _log
+import rpc as _rpc
 
 # test_xmpp_agent1
 # test_xmpp_agent2
-class agent(_agent):
+class agent(object):
+	def __init__(self,jid,password = None,timeout = 10,**kwargs):
+		from sleekxmpp import ClientXMPP
+		from threading import Condition, Lock
+		import ssl
+		import logging
+		super().__init__(**kwargs)
+		if timeout is None:
+			self.__timeout = None
+		else:
+			try:
+				self.__timeout = float(timeout)
+			except:
+				raise TypeError('cannot convert timeout value to float')
+			if self.__timeout < 0.:
+				raise ValueError('timeout value must be non-negative')
+		# Logger object.
+		self.__logger = logging.getLogger('jezebel.xmpp.agent')
+		self.__logger.info('creating an agent')
+		# Create the XMPP client as a class member.
+		self.__xmpp_client = ClientXMPP(jid,password)
+		# Dictionary of sent requests and received responses.
+		self.__pending_requests = {}
+		self.__received_responses = {}
+		# Global lock and condition variable.
+		self.__lock = Lock()
+		self.__cv = Condition(self.__lock)
+		# The SSL setting is needed for openfire.
+		self.__xmpp_client.ssl_version = ssl.PROTOCOL_SSLv3
+		# Add event handlers.
+		self.__xmpp_client.add_event_handler('session_start',self.__start)
+		self.__xmpp_client.add_event_handler('failed_auth',self.__failed_auth)
+		self.__xmpp_client.add_event_handler('message',self.__message)
+		# Iinitiate the connection and move to background.
+		self.__tmp_cv = Condition()
+		self.__tmp_status = 0
+		if self.__xmpp_client.connect():
+			self.__xmpp_client.process(block=False)
+			with self.__tmp_cv:
+				while self.__tmp_status == 0:
+					self.__tmp_cv.wait()
+				s = self.__tmp_status
+			if s == -1:
+				self.__xmpp_client.disconnect()
+				raise RuntimeError('authentication failure')
+		else:
+			raise RuntimeError('connection failed')
+		self.client = self.__xmpp_client
 	def __start(self,event):
 		self.__xmpp_client.send_presence()
 		self.__xmpp_client.get_roster()
@@ -48,52 +94,6 @@ class agent(_agent):
 		self.__logger.info('request executed, result is: ' + str(ret))
 		if not ret is None:
 			msg.reply(ret).send()
-	def __init__(self,jid,password = None,timeout = None):
-		from sleekxmpp import ClientXMPP
-		from threading import Condition, Lock
-		import ssl
-		super(agent,self).__init__()
-		if timeout is None:
-			self.__timeout = None
-		else:
-			try:
-				self.__timeout = float(timeout)
-			except:
-				raise TypeError('cannot convert timeout value to float')
-			if self.__timeout < 0.:
-				raise ValueError('timeout value must be non-negative')
-		# Logger object.
-		self.__logger = _log.getLogger('jezebel.xmpp.agent')
-		self.__logger.info('creating an agent')
-		# Create the XMPP client as a class member.
-		self.__xmpp_client = ClientXMPP(jid,password)
-		# Dictionary of sent requests and received responses.
-		self.__pending_requests = {}
-		self.__received_responses = {}
-		# Global lock and condition variable.
-		self.__lock = Lock()
-		self.__cv = Condition(self.__lock)
-		# The SSL setting is needed for openfire.
-		self.__xmpp_client.ssl_version = ssl.PROTOCOL_SSLv3
-		# Add event handlers.
-		self.__xmpp_client.add_event_handler('session_start',self.__start)
-		self.__xmpp_client.add_event_handler('failed_auth',self.__failed_auth)
-		self.__xmpp_client.add_event_handler('message',self.__message)
-		# Iinitiate the connection and move to background.
-		self.__tmp_cv = Condition()
-		self.__tmp_status = 0
-		if self.__xmpp_client.connect():
-			self.__xmpp_client.process(block=False)
-			with self.__tmp_cv:
-				while self.__tmp_status == 0:
-					self.__tmp_cv.wait()
-				s = self.__tmp_status
-			if s == -1:
-				self.__xmpp_client.disconnect()
-				raise RuntimeError('authentication failure')
-		else:
-			raise RuntimeError('connection failed')
-		self.client = self.__xmpp_client
 	def xmpp_disconnect(self):
 		self.__xmpp_client.disconnect()
 	def xmpp_rpc_request(self,target,req):
@@ -149,3 +149,9 @@ class agent(_agent):
 		from copy import deepcopy
 		with self.__lock:
 			return deepcopy(self.__received_responses)
+	@_rpc.enable_rpc
+	def urls(self):
+		url = 'xmpp://' + self.__xmpp_client.boundjid.bare
+		if hasattr(super(),'urls'):
+			return super().urls() + [url]
+		return [url]
