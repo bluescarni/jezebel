@@ -23,6 +23,9 @@ def enable_rpc(method):
 
 class agent(object):
 	def __init__(self,**kwargs):
+		import logging
+		self.__logger = logging.getLogger('jezebel.rpc.agent')
+		self.__logger.info('initialising rpc agent')
 		super().__init__(**kwargs)
 	@staticmethod
 	def translate_rpc_error(code,message):
@@ -207,11 +210,3 @@ class agent(object):
 	@enable_rpc
 	def features(self):
 		return list(filter(lambda _: hasattr(getattr(self,_),'_enable_rpc_'),dir(self)))
-
-def enable_logging():
-	import logging
-	l = logging.getLogger('jezebel')
-	l.setLevel(logging.INFO)
-	ch = logging.StreamHandler()
-	ch.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-	l.addHandler(ch)

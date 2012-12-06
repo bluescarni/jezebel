@@ -1,4 +1,4 @@
-import rpc as _rpc
+from . import rpc as _rpc
 
 # test_xmpp_agent1
 # test_xmpp_agent2
@@ -20,7 +20,7 @@ class agent(object):
 				raise ValueError('timeout value must be non-negative')
 		# Logger object.
 		self.__logger = logging.getLogger('jezebel.xmpp.agent')
-		self.__logger.info('creating an agent')
+		self.__logger.info('initialising xmpp agent')
 		# Create the XMPP client as a class member.
 		self.__xmpp_client = ClientXMPP(jid,password)
 		# Dictionary of sent requests and received responses.

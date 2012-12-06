@@ -1,10 +1,11 @@
-import rpc as _rpc
+from . import rpc as _rpc
 
 class agent(object):
 	def __init__(self,**kwargs):
 		import logging
-		self.__logger = logging.getLogger('jezebel.directions.agent')
 		super().__init__(**kwargs)
+		self.__logger = logging.getLogger('jezebel.directions.agent')
+		self.__logger.info('initialising directions agent')
 	@_rpc.enable_rpc
 	def get_directions(self,origin,destination):
 		import urllib, urllib.request, json
