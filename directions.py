@@ -1,8 +1,9 @@
-from . import rpc as _rpc
+from . import rpc as _rpc, _detail
 
 class agent(object):
 	def __init__(self,**kwargs):
 		import logging
+		_detail._check_inheritance(self)
 		super().__init__(**kwargs)
 		self.__logger = logging.getLogger('jezebel.directions.agent')
 		self.__logger.info('initialising directions agent')

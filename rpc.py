@@ -7,6 +7,8 @@
 
 """
 
+import abc as _abc
+
 class error_codes(object):
 	PARSE_ERROR		= -32700
 	INVALID_REQUEST		= -32600
@@ -21,7 +23,7 @@ def enable_rpc(method):
 	method._enable_rpc_ = True
 	return method
 
-class agent(object):
+class agent(object,metaclass = _abc.ABCMeta):
 	def __init__(self,**kwargs):
 		import logging
 		self.__logger = logging.getLogger('jezebel.rpc.agent')
@@ -207,6 +209,10 @@ class agent(object):
 			except AttributeError:
 				raise TypeError('no handler for scheme "' + url[0] + '" found')
 			return m(target,req)
+	@enable_rpc
+	@_abc.abstractmethod
+	def urls(self):
+		return []
 	@enable_rpc
 	def features(self):
 		return list(filter(lambda _: hasattr(getattr(self,_),'_enable_rpc_'),dir(self)))

@@ -1,4 +1,4 @@
-from . import rpc as _rpc
+from . import rpc as _rpc, _detail
 
 # test_xmpp_agent1
 # test_xmpp_agent2
@@ -8,6 +8,7 @@ class agent(object):
 		from threading import Condition, Lock
 		import ssl
 		import logging
+		_detail._check_inheritance(self)
 		super().__init__(**kwargs)
 		if timeout is None:
 			self.__timeout = None
@@ -151,7 +152,4 @@ class agent(object):
 			return deepcopy(self.__received_responses)
 	@_rpc.enable_rpc
 	def urls(self):
-		url = 'xmpp://' + self.__xmpp_client.boundjid.bare
-		if hasattr(super(),'urls'):
-			return super().urls() + [url]
-		return [url]
+		return super().urls() + ['xmpp://' + self.__xmpp_client.boundjid.bare]
