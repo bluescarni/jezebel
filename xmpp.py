@@ -9,7 +9,6 @@ class agent(object):
 		import ssl
 		import logging
 		_detail._check_inheritance(self)
-		super().__init__(**kwargs)
 		if timeout is None:
 			self.__timeout = None
 		else:
@@ -51,6 +50,7 @@ class agent(object):
 		else:
 			raise RuntimeError('connection failed')
 		self.client = self.__xmpp_client
+		super().__init__(**kwargs)
 	def __start(self,event):
 		self.__xmpp_client.send_presence()
 		self.__xmpp_client.get_roster()

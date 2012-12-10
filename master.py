@@ -5,11 +5,11 @@ class agent(object):
 		from threading import Lock
 		import logging
 		_detail._check_inheritance(self)
-		super().__init__(**kwargs)
 		self.__logger = logging.getLogger('jezebel.master.agent')
 		self.__logger.info('initialising master agent')
 		self.__agent_list = []
 		self.__lock = Lock()
+		super().__init__(**kwargs)
 	def __wrap_url_request(self,agent):
 		try:
 			return agent.urls()
@@ -17,6 +17,10 @@ class agent(object):
 			return None
 	@_rpc.enable_rpc
 	def spawn(self,t,*args,**kwargs):
+		# TODO:
+		# - better granularity at error handling (check separately existence of agent type and construction of agent -> but maybe this
+		#   is already handled by the RPC system, will return a string with the error.
+		# - allow for import of agents outside the jezebel module.
 		import importlib
 		if not isinstance(t,str):
 			raise TypeError('agent type must be a string')

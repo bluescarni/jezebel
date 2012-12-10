@@ -4,9 +4,9 @@ class agent(object):
 	def __init__(self,**kwargs):
 		import logging
 		_detail._check_inheritance(self)
-		super().__init__(**kwargs)
 		self.__logger = logging.getLogger('jezebel.directions.agent')
 		self.__logger.info('initialising directions agent')
+		super().__init__(**kwargs)
 	@_rpc.enable_rpc
 	def get_directions(self,origin,destination):
 		import urllib, urllib.request, json
