@@ -101,7 +101,7 @@ class agent(object):
 		from urllib.parse import urlparse
 		import json
 		from concurrent.futures import ThreadPoolExecutor as tpe
-		jid = urlparse(target)[1]
+		jid = urlparse(target)[2]
 		req_s = json.dumps(req)
 		# First the request must be registered, then sent. The other way around,
 		# we might get a reply before the request is registered.
@@ -152,4 +152,4 @@ class agent(object):
 			return deepcopy(self.__received_responses)
 	@_rpc.enable_rpc
 	def urls(self):
-		return super().urls() + ['xmpp://' + self.__xmpp_client.boundjid.bare]
+		return super().urls() + ['xmpp:' + self.__xmpp_client.boundjid.bare]
