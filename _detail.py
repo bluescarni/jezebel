@@ -1,5 +1,5 @@
 from . import rpc as _rpc
 
 def _check_inheritance(self):
-	if not isinstance(self,_rpc.agent):
-		raise TypeError('this class must derive from the rpc agent class')
+	if not issubclass(type(self),_rpc.agent):
+		raise TypeError('this class must be a subclass of the rpc agent class')
