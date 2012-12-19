@@ -8,6 +8,7 @@ class agent(object):
 		from threading import Condition, Lock
 		import ssl
 		import logging
+		from time import time
 		_detail._check_inheritance(self)
 		if timeout is None:
 			self.__timeout = None
@@ -40,16 +41,22 @@ class agent(object):
 		self.__tmp_status = 0
 		if self.__xmpp_client.connect():
 			self.__xmpp_client.process(block=False)
+			start_t = time()
+			# Hard-coded connection timeout.
+			c_timeout = 10.
 			with self.__tmp_cv:
 				while self.__tmp_status == 0:
-					self.__tmp_cv.wait()
+					if time() - start_t > c_timeout:
+						# Try disconnecting for cleanup before raising the error.
+						self.__xmpp_client.disconnect()
+						raise RuntimeError('connection timeout')
+					self.__tmp_cv.wait(c_timeout)
 				s = self.__tmp_status
 			if s == -1:
 				self.__xmpp_client.disconnect()
 				raise RuntimeError('authentication failure')
 		else:
 			raise RuntimeError('connection failed')
-		self.client = self.__xmpp_client
 		super().__init__(**kwargs)
 	def __start(self,event):
 		self.__xmpp_client.send_presence()
