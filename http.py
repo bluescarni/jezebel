@@ -54,11 +54,21 @@ class _thr_server(_thr.Thread):
 		self.server.serve_forever()
 
 class agent(object):
-	def __init__(self,server_address = None,**kwargs):
+	def __init__(self,server_address = None,http_timeout = 10.,**kwargs):
 		import logging
 		_detail._check_inheritance(self)
+		if http_timeout is None:
+			self.__timeout = None
+		else:
+			try:
+				self.__timeout = float(http_timeout)
+			except:
+				raise TypeError('cannot convert timeout value to float')
+			if self.__timeout < 0.:
+				raise ValueError('timeout value must be non-negative')
 		self.__logger = logging.getLogger('jezebel.http.agent')
 		self.__logger.info('initialising http agent')
+		self.__logger.info('timeout set to ' + str(self.__timeout))
 		# Create the server object only if requested.
 		if not server_address is None:
 			# Create the threaded server object.
@@ -94,7 +104,7 @@ class agent(object):
 		h = {'Content-type':'application/json', 'Accept':'application/json'}
 		r = urllib.request.Request(url=target,data=json.dumps(req).encode('utf-8'),headers=h)
 		def worker():
-			jdict = self.parse_response(urllib.request.urlopen(r).read().decode('utf-8'))
+			jdict = self.parse_response(urllib.request.urlopen(r,timeout = self.__timeout).read().decode('utf-8'))
 			if 'error' in jdict:
 				self.translate_rpc_error(jdict['error']['code'],jdict['error']['message'])
 			else:
