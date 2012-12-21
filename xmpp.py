@@ -3,18 +3,18 @@ from . import rpc as _rpc, _detail
 # test_xmpp_agent1
 # test_xmpp_agent2
 class agent(object):
-	def __init__(self,jid,password = None,timeout = 10,**kwargs):
+	def __init__(self,jid,password = None,xmpp_timeout = 10,**kwargs):
 		from sleekxmpp import ClientXMPP
 		from threading import Condition, Lock
 		import ssl
 		import logging
 		from time import time
 		_detail._check_inheritance(self)
-		if timeout is None:
+		if xmpp_timeout is None:
 			self.__timeout = None
 		else:
 			try:
-				self.__timeout = float(timeout)
+				self.__timeout = float(xmpp_timeout)
 			except:
 				raise TypeError('cannot convert timeout value to float')
 			if self.__timeout < 0.:
@@ -43,15 +43,13 @@ class agent(object):
 		if self.__xmpp_client.connect():
 			self.__xmpp_client.process(block=False)
 			start_t = time()
-			# Hard-coded connection timeout.
-			c_timeout = 10.
 			with self.__tmp_cv:
 				while self.__tmp_status == 0:
-					if time() - start_t > c_timeout:
+					if not self.__timeout is None and time() - start_t > self.__timeout:
 						# Try disconnecting for cleanup before raising the error.
 						self.__xmpp_client.disconnect()
 						raise RuntimeError('connection timeout')
-					self.__tmp_cv.wait(c_timeout)
+					self.__tmp_cv.wait(self.__timeout)
 				s = self.__tmp_status
 			if s == -1:
 				self.__xmpp_client.disconnect()
