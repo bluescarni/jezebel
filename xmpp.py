@@ -22,6 +22,7 @@ class agent(object):
 		# Logger object.
 		self.__logger = logging.getLogger('jezebel.xmpp.agent')
 		self.__logger.info('initialising xmpp agent')
+		self.__logger.info('timeout set to ' + str(self.__timeout))
 		# Dictionary of sent requests and received responses.
 		self.__pending_requests = {}
 		self.__received_responses = {}
