@@ -213,3 +213,5 @@ class agent(object):
 	@enable_rpc
 	def features(self):
 		return list(filter(lambda _: hasattr(getattr(self,_),'_enable_rpc_'),dir(self)))
+	def disconnect(self):
+		pass

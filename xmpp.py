@@ -22,14 +22,14 @@ class agent(object):
 		# Logger object.
 		self.__logger = logging.getLogger('jezebel.xmpp.agent')
 		self.__logger.info('initialising xmpp agent')
-		# Create the XMPP client as a class member.
-		self.__xmpp_client = ClientXMPP(jid,password)
 		# Dictionary of sent requests and received responses.
 		self.__pending_requests = {}
 		self.__received_responses = {}
 		# Global lock and condition variable.
 		self.__lock = Lock()
 		self.__cv = Condition(self.__lock)
+		# Create the XMPP client as a class member.
+		self.__xmpp_client = ClientXMPP(jid,password)
 		# The SSL setting is needed for openfire.
 		self.__xmpp_client.ssl_version = ssl.PROTOCOL_SSLv3
 		# Add event handlers.
@@ -57,7 +57,12 @@ class agent(object):
 				raise RuntimeError('authentication failure')
 		else:
 			raise RuntimeError('connection failed')
-		super().__init__(**kwargs)
+		try:
+			super().__init__(**kwargs)
+		except:
+			# Disconnect for cleanup before re-raising.
+			self.__xmpp_client.disconnect()
+			raise
 	def __start(self,event):
 		self.__xmpp_client.send_presence()
 		self.__xmpp_client.get_roster()
@@ -102,8 +107,10 @@ class agent(object):
 		self.__logger.info('request executed, result is: ' + str(ret))
 		if not ret is None:
 			msg.reply(ret).send()
-	def xmpp_disconnect(self):
+	def disconnect(self):
+		self.__logger.info('disconnecting xmpp agent')
 		self.__xmpp_client.disconnect()
+		super().disconnect()
 	def xmpp_rpc_request(self,target,req):
 		from urllib.parse import urlparse
 		import json
