@@ -1,5 +1,6 @@
 from . import _detail, rpc as _rpc
 import http.server as _server, threading as _thr
+from socketserver import ThreadingMixIn as _thr_mixin
 
 class _req_handler(_server.BaseHTTPRequestHandler):
 	# Use 1.0 as it is most minimialist (no mandatory header parts).
@@ -39,11 +40,14 @@ class _req_handler(_server.BaseHTTPRequestHandler):
 			self.__logger.info('replying with:\n' + retval)
 			self.wfile.write(retval.encode('utf-8'))
 
+class _mt_http_server(_thr_mixin,_server.HTTPServer):
+	pass
+
 class _thr_server(_thr.Thread):
 	def __init__(self,server_address,req_handler):
 		import logging
 		self.__logger = logging.getLogger('jezebel.http.agent')
-		self.server = _server.HTTPServer(server_address,_req_handler)
+		self.server = _mt_http_server(server_address,_req_handler)
 		super().__init__()
 	def run(self):
 		self.__logger.info('starting HTTP server at address ' + str(self.server.server_address))
