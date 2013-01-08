@@ -54,7 +54,7 @@ class _thr_server(_thr.Thread):
 		self.server.serve_forever()
 
 class agent(object):
-	def __init__(self,server_address = None,http_timeout = 10.,**kwargs):
+	def __init__(self,http_address = None,http_timeout = 10.,**kwargs):
 		import logging
 		_detail._check_inheritance(self)
 		if http_timeout is None:
@@ -70,9 +70,9 @@ class agent(object):
 		self.__logger.info('initialising http agent')
 		self.__logger.info('timeout set to ' + str(self.__timeout))
 		# Create the server object only if requested.
-		if not server_address is None:
+		if not http_address is None:
 			# Create the threaded server object.
-			self.__server = _thr_server(server_address,_req_handler)
+			self.__server = _thr_server(http_address,_req_handler)
 			# Make the agent reachable from the server.
 			self.__server.server.agent = self
 			# Start the server.
