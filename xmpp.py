@@ -1,7 +1,7 @@
 from . import rpc as _rpc, _detail
 
 class agent(object):
-	def __init__(self,jid,password = None,xmpp_timeout = 10,**kwargs):
+	def __init__(self,jid = None,jpassword = None,xmpp_timeout = 10,**kwargs):
 		from sleekxmpp import ClientXMPP
 		from threading import Condition, Lock
 		import ssl
@@ -27,8 +27,12 @@ class agent(object):
 		# Global lock and condition variable.
 		self.__lock = Lock()
 		self.__cv = Condition(self.__lock)
+		if jid is None:
+			#  Finalize construction and return immediately if no jid is provided.
+			super().__init__(**kwargs)
+			return
 		# Create the XMPP client as a class member.
-		self.__xmpp_client = ClientXMPP(jid,password)
+		self.__xmpp_client = ClientXMPP(jid,jpassword)
 		# The SSL setting is needed for openfire.
 		self.__xmpp_client.ssl_version = ssl.PROTOCOL_SSLv3
 		# Add event handlers.
@@ -106,12 +110,16 @@ class agent(object):
 			msg.reply(ret).send()
 	def disconnect(self):
 		self.__logger.info('disconnecting xmpp agent')
-		self.__xmpp_client.disconnect()
+		try:
+			self.__xmpp_client.disconnect()
+		except AttributeError: pass
 		super().disconnect()
 	def xmpp_rpc_request(self,target,req):
 		from urllib.parse import urlparse
 		import json
 		from concurrent.futures import ThreadPoolExecutor as tpe
+		if not hasattr(self,'__xmpp_client'):
+			raise ValueError('no xmmp client is available on this agent, as no jid was provided during construction')
 		jid = urlparse(target)[2]
 		req_s = json.dumps(req)
 		# First the request must be registered, then sent. The other way around,
@@ -163,4 +171,7 @@ class agent(object):
 			return deepcopy(self.__received_responses)
 	@_rpc.enable_rpc
 	def urls(self):
-		return super().urls() + ['xmpp:' + self.__xmpp_client.boundjid.bare]
+		try:
+			return super().urls() + ['xmpp:' + self.__xmpp_client.boundjid.bare]
+		except AttributeError:
+			return super().urls()
