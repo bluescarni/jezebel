@@ -4,7 +4,7 @@
 
 """
 
-__all__ = ['rpc', 'xmpp', 'master', 'directions', 'example']
+__all__ = ['rpc', 'xmpp', 'master', 'directions', 'example', 'http']
 
 # Temporarily here.
 def enable_logging():
