@@ -1,7 +1,5 @@
 from . import rpc as _rpc, _detail
 
-# test_xmpp_agent1
-# test_xmpp_agent2
 class agent(object):
 	def __init__(self,jid,password = None,xmpp_timeout = 10,**kwargs):
 		from sleekxmpp import ClientXMPP

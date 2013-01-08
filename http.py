@@ -85,7 +85,9 @@ class agent(object):
 	def __disconnect(self):
 		self.__logger.info('disconnecting http agent')
 		try:
+			self.__server.server.server_close()
 			self.__server.server.shutdown()
+			self.__logger.info('server has been shut down')
 		except AttributeError:
 			pass
 	@_rpc.enable_rpc
